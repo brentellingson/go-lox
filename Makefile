@@ -3,6 +3,7 @@ build: format
 
 format: generate
 	gofumpt -l -w .
+	gci write .
 
 generate: restore
 	go generate ./...

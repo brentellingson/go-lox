@@ -1,4 +1,21 @@
-package token
+package internal
+
+import "fmt"
+
+type Token struct {
+	Type    TokenType
+	Lexeme  string
+	Literal any
+	Line    int
+}
+
+func NewToken(tokenType TokenType, lexeme string, literal any, line int) Token {
+	return Token{tokenType, lexeme, literal, line}
+}
+
+func (t Token) String() string {
+	return fmt.Sprintf("%v %v %v", t.Type, t.Lexeme, t.Literal)
+}
 
 //go:generate stringer -type=TokenType
 type TokenType int

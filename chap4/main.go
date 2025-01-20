@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/brentellingson/go-lox/internal/errutil"
-	"github.com/brentellingson/go-lox/internal/scanner"
+	"github.com/brentellingson/go-lox/internal"
 )
 
 func main() {
@@ -28,7 +27,7 @@ func runFile(path string) {
 		panic("error reading file " + path)
 	}
 	run(string(bytes))
-	if errutil.HadError {
+	if internal.HadError {
 		os.Exit(65)
 	}
 }
@@ -42,7 +41,7 @@ func runPrompt() {
 		}
 		line := scanner.Text()
 		run(line)
-		errutil.HadError = false
+		internal.HadError = false
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -51,7 +50,7 @@ func runPrompt() {
 }
 
 func run(source string) {
-	scanner := scanner.NewScanner(source)
+	scanner := internal.NewScanner(source)
 	for _, token := range scanner.ScanTokens() {
 		fmt.Println(token)
 	}

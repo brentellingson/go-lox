@@ -1,15 +1,31 @@
-package scanner
+package internal
 
 import (
 	"unicode/utf8"
-
-	"github.com/brentellingson/go-lox/internal/errutil"
-	"github.com/brentellingson/go-lox/internal/token"
 )
+
+var reserved = map[string]TokenType{
+	"and":    AND,
+	"class":  CLASS,
+	"else":   ELSE,
+	"false":  FALSE,
+	"fun":    FUN,
+	"for":    FOR,
+	"if":     IF,
+	"nil":    NIL,
+	"or":     OR,
+	"print":  PRINT,
+	"return": RETURN,
+	"super":  SUPER,
+	"this":   THIS,
+	"true":   TRUE,
+	"var":    VAR,
+	"while":  WHILE,
+}
 
 type Scanner struct {
 	Source  string
-	Tokens  []token.Token
+	Tokens  []Token
 	start   int
 	current int
 	line    int
@@ -22,13 +38,13 @@ func NewScanner(source string) *Scanner {
 	}
 }
 
-func (s *Scanner) ScanTokens() []token.Token {
+func (s *Scanner) ScanTokens() []Token {
 	for !s.isAtEnd() {
 		s.start = s.current
 		s.scanToken()
 	}
 
-	s.Tokens = append(s.Tokens, token.NewToken(token.EOF, "", nil, s.line))
+	s.Tokens = append(s.Tokens, NewToken(EOF, "", nil, s.line))
 	return s.Tokens
 }
 
@@ -36,48 +52,48 @@ func (s *Scanner) scanToken() {
 	c := s.advance()
 	switch c {
 	case '(':
-		s.addToken(token.LEFT_PAREN)
+		s.addToken(LEFT_PAREN)
 	case ')':
-		s.addToken(token.RIGHT_PAREN)
+		s.addToken(RIGHT_PAREN)
 	case '{':
-		s.addToken(token.LEFT_BRACE)
+		s.addToken(LEFT_BRACE)
 	case '}':
-		s.addToken(token.RIGHT_BRACE)
+		s.addToken(RIGHT_BRACE)
 	case ',':
-		s.addToken(token.COMMA)
+		s.addToken(COMMA)
 	case '.':
-		s.addToken(token.DOT)
+		s.addToken(DOT)
 	case '-':
-		s.addToken(token.MINUS)
+		s.addToken(MINUS)
 	case '+':
-		s.addToken(token.PLUS)
+		s.addToken(PLUS)
 	case ';':
-		s.addToken(token.SEMICOLON)
+		s.addToken(SEMICOLON)
 	case '*':
-		s.addToken(token.STAR)
+		s.addToken(STAR)
 	case '!': // BANG or BANG_EQUAL
 		if s.match('=') {
-			s.addToken(token.BANG_EQUAL)
+			s.addToken(BANG_EQUAL)
 		} else {
-			s.addToken(token.BANG)
+			s.addToken(BANG)
 		}
 	case '=': // EQUAL or EQUAL_EQUAL
 		if s.match('=') {
-			s.addToken(token.EQUAL_EQUAL)
+			s.addToken(EQUAL_EQUAL)
 		} else {
-			s.addToken(token.EQUAL)
+			s.addToken(EQUAL)
 		}
 	case '<': // LESS or LESS_EQUAL
 		if s.match('=') {
-			s.addToken(token.LESS_EQUAL)
+			s.addToken(LESS_EQUAL)
 		} else {
-			s.addToken(token.LESS)
+			s.addToken(LESS)
 		}
 	case '>': // GREATER or GREATER_EQUAL
 		if s.match('=') {
-			s.addToken(token.GREATER_EQUAL)
+			s.addToken(GREATER_EQUAL)
 		} else {
-			s.addToken(token.GREATER)
+			s.addToken(GREATER)
 		}
 	case '/':
 		if s.match('/') {
@@ -85,7 +101,7 @@ func (s *Scanner) scanToken() {
 				s.advance()
 			}
 		} else {
-			s.addToken(token.SLASH)
+			s.addToken(SLASH)
 		}
 	case ' ', '\r', '\t':
 		// Ignore whitespace.
@@ -99,7 +115,7 @@ func (s *Scanner) scanToken() {
 		} else if s.isAlpha(c) {
 			s.identifier()
 		} else {
-			errutil.Error(s.line, "Unexpected character "+string(c))
+			Error(s.line, "Unexpected character "+string(c))
 		}
 	}
 }
@@ -113,14 +129,14 @@ func (s *Scanner) string() {
 	}
 
 	if s.isAtEnd() {
-		errutil.Error(s.line, "Unterminated string.")
+		Error(s.line, "Unterminated string.")
 		return
 	}
 
 	s.advance() // the closing ".
 
 	value := s.Source[s.start+1 : s.current-1]
-	s.addTokenLiteral(token.STRING, value)
+	s.addTokenLiteral(STRING, value)
 }
 
 func (s *Scanner) number() {
@@ -136,7 +152,7 @@ func (s *Scanner) number() {
 	}
 
 	value := s.Source[s.start:s.current]
-	s.addTokenLiteral(token.NUMBER, value)
+	s.addTokenLiteral(NUMBER, value)
 }
 
 func (s *Scanner) identifier() {
@@ -150,7 +166,7 @@ func (s *Scanner) identifier() {
 		return
 	}
 
-	s.addToken(token.IDENTIFIER)
+	s.addToken(IDENTIFIER)
 }
 
 func (s *Scanner) isAtEnd() bool {
@@ -209,12 +225,12 @@ func (s *Scanner) peekNext() rune {
 	return r
 }
 
-func (s *Scanner) addToken(tokenType token.TokenType) {
+func (s *Scanner) addToken(tokenType TokenType) {
 	text := s.Source[s.start:s.current]
-	s.Tokens = append(s.Tokens, token.NewToken(tokenType, text, nil, s.line))
+	s.Tokens = append(s.Tokens, NewToken(tokenType, text, nil, s.line))
 }
 
-func (s *Scanner) addTokenLiteral(tokenType token.TokenType, literal any) {
+func (s *Scanner) addTokenLiteral(tokenType TokenType, literal any) {
 	text := s.Source[s.start:s.current]
-	s.Tokens = append(s.Tokens, token.NewToken(tokenType, text, literal, s.line))
+	s.Tokens = append(s.Tokens, NewToken(tokenType, text, literal, s.line))
 }
