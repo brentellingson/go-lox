@@ -52,7 +52,12 @@ func runPrompt() {
 func run(source string) {
 	scanner := internal.NewScanner(source)
 	tokens := scanner.ScanTokens()
-	parser := internal.NewParser(internal.NewTokenArray(tokens))
+	parser := internal.NewParser(tokens)
 	expr := parser.Parse()
+
+	if internal.HadError {
+		return
+	}
+
 	fmt.Println(internal.PrintAst(expr))
 }

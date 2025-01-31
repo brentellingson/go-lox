@@ -1,25 +1,5 @@
 package internal
 
-type TokenStream interface {
-	// Current returns the current token in the stream. All parser functions will assume that Current is the token that needs to be parsed.
-	Current() Token
-
-	// Advance moves to the next token in the stream and returns the previous current token.
-	Advance() Token
-
-	// Peek returns the next token in the stream without advancing the current token.
-	Peek() Token
-
-	// IsAtEnd returns true if the current token is the last token in the stream.
-	IsAtEnd() bool
-
-	// Check returns true if the current token matches any of the specified types, without advancing the current token.
-	Check(types ...TokenType) bool
-
-	// Match returns true if the current token matches any of the specified types, and advances the current token.
-	Match(types ...TokenType) bool
-}
-
 type ParseError struct {
 	Token   Token
 	Message string
@@ -30,17 +10,68 @@ func (e *ParseError) Error() string {
 }
 
 type Parser struct {
-	stream TokenStream
+	tokens  []Token
+	current int
 }
 
-func NewParser(stream TokenStream) *Parser {
-	return &Parser{stream: stream}
+func NewParser(tokens []Token) *Parser {
+	if len(tokens) == 0 || tokens[len(tokens)-1].Type != EOF {
+		tokens = append(tokens, Token{Type: EOF})
+	}
+	return &Parser{tokens: tokens}
+}
+
+// Current returns the current token in the stream. All parser functions will assume that Current is the token that needs to be parsed.
+func (t *Parser) Current() Token {
+	return t.tokens[t.current]
+}
+
+// Advance moves to the next token in the stream and returns the previous current token.
+func (t *Parser) Advance() Token {
+	rval := t.tokens[t.current]
+	if !t.IsAtEnd() {
+		t.current++
+	}
+	return rval
+}
+
+// Peek returns the next token in the stream without advancing the current token.  If the current token is the last token in the stream, Peek will return an EOF token.
+func (t *Parser) Peek() Token {
+	if t.IsAtEnd() {
+		return t.tokens[t.current]
+	}
+
+	return t.tokens[t.current+1]
+}
+
+// IsAtEnd returns true if the current token is the last token in the stream.
+func (t *Parser) IsAtEnd() bool {
+	return t.tokens[t.current].Type == EOF || t.current >= len(t.tokens)-1
+}
+
+// Check returns true if the current token matches any of the specified types, without advancing the current token.
+func (t *Parser) Check(types ...TokenType) bool {
+	for _, ttype := range types {
+		if t.tokens[t.current].Type == ttype {
+			return true
+		}
+	}
+	return false
+}
+
+// Match returns true if the current token matches any of the specified types, and advances the current token.
+func (t *Parser) Match(types ...TokenType) bool {
+	if t.Check(types...) {
+		t.Advance()
+		return true
+	}
+	return false
 }
 
 func (p *Parser) Parse() Expr {
 	expr, err := p.expression()
 	if err != nil {
-		Error(p.stream.Current().Line, err.Error())
+		Error(p.Current().Line, err.Error())
 	}
 	return expr
 }
@@ -55,8 +86,8 @@ func (p *Parser) equality() (Expr, error) {
 		return nil, err
 	}
 
-	for p.stream.Check(BANG_EQUAL, EQUAL_EQUAL) {
-		operator := p.stream.Advance()
+	for p.Check(BANG_EQUAL, EQUAL_EQUAL) {
+		operator := p.Advance()
 		right, err := p.comparison()
 		if err != nil {
 			return nil, err
@@ -72,8 +103,8 @@ func (p *Parser) comparison() (Expr, error) {
 		return nil, err
 	}
 
-	for p.stream.Check(GREATER, GREATER_EQUAL, LESS, LESS_EQUAL) {
-		operator := p.stream.Advance()
+	for p.Check(GREATER, GREATER_EQUAL, LESS, LESS_EQUAL) {
+		operator := p.Advance()
 		right, err := p.term()
 		if err != nil {
 			return nil, err
@@ -89,8 +120,8 @@ func (p *Parser) term() (Expr, error) {
 		return nil, err
 	}
 
-	for p.stream.Check(PLUS, MINUS) {
-		operator := p.stream.Advance()
+	for p.Check(PLUS, MINUS) {
+		operator := p.Advance()
 		right, err := p.factor()
 		if err != nil {
 			return nil, err
@@ -106,8 +137,8 @@ func (p *Parser) factor() (Expr, error) {
 		return nil, err
 	}
 
-	for p.stream.Check(STAR, SLASH) {
-		operator := p.stream.Advance()
+	for p.Check(STAR, SLASH) {
+		operator := p.Advance()
 		right, err := p.unary()
 		if err != nil {
 			return nil, err
@@ -118,8 +149,8 @@ func (p *Parser) factor() (Expr, error) {
 }
 
 func (p *Parser) unary() (Expr, error) {
-	if p.stream.Check(BANG, MINUS) {
-		operator := p.stream.Advance()
+	if p.Check(BANG, MINUS) {
+		operator := p.Advance()
 		right, err := p.unary()
 		if err != nil {
 			return nil, err
@@ -130,33 +161,33 @@ func (p *Parser) unary() (Expr, error) {
 }
 
 func (p *Parser) primary() (Expr, error) {
-	if p.stream.Match(FALSE) {
+	if p.Match(FALSE) {
 		return &Literal{Value: false}, nil
 	}
 
-	if p.stream.Match(TRUE) {
+	if p.Match(TRUE) {
 		return &Literal{Value: true}, nil
 	}
 
-	if p.stream.Match(NIL) {
+	if p.Match(NIL) {
 		return &Literal{Value: nil}, nil
 	}
 
-	if p.stream.Check(NUMBER, STRING) {
-		return &Literal{Value: p.stream.Advance().Literal}, nil
+	if p.Check(NUMBER, STRING) {
+		return &Literal{Value: p.Advance().Literal}, nil
 	}
 
-	if p.stream.Match(LEFT_PAREN) {
+	if p.Match(LEFT_PAREN) {
 		expr, err := p.expression()
 		if err != nil {
 			return nil, err
 		}
 
-		if !p.stream.Match(RIGHT_PAREN) {
-			return nil, &ParseError{p.stream.Current(), "Expect ')' after expression."}
+		if !p.Match(RIGHT_PAREN) {
+			return nil, &ParseError{p.Current(), "Expect ')' after expression."}
 		}
 		return &Grouping{Expression: expr}, nil
 	}
 
-	return nil, &ParseError{p.stream.Current(), "Expect expression."}
+	return nil, &ParseError{p.Current(), "Expect expression."}
 }
