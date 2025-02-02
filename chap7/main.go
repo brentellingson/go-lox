@@ -30,6 +30,9 @@ func runFile(path string) {
 	if internal.HadParserError {
 		os.Exit(65)
 	}
+	if internal.HadRuntimeError {
+		os.Exit(70)
+	}
 }
 
 func runPrompt() {
@@ -42,6 +45,7 @@ func runPrompt() {
 		line := scanner.Text()
 		run(line)
 		internal.HadParserError = false
+		internal.HadRuntimeError = false
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -59,5 +63,6 @@ func run(source string) {
 		return
 	}
 
-	fmt.Println(internal.PrintAst(expr))
+	interpreter := internal.Interpreter{}
+	interpreter.Interpret(expr)
 }

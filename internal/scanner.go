@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"strconv"
 	"unicode/utf8"
 )
 
@@ -115,7 +116,7 @@ func (s *Scanner) scanToken() {
 		} else if s.isAlpha(c) {
 			s.identifier()
 		} else {
-			Error(s.line, "Unexpected character "+string(c))
+			ReportParserError(s.line, "Unexpected character "+string(c))
 		}
 	}
 }
@@ -129,7 +130,7 @@ func (s *Scanner) string() {
 	}
 
 	if s.isAtEnd() {
-		Error(s.line, "Unterminated string.")
+		ReportParserError(s.line, "Unterminated string.")
 		return
 	}
 
@@ -151,7 +152,11 @@ func (s *Scanner) number() {
 		}
 	}
 
-	value := s.Source[s.start:s.current]
+	value, err := strconv.ParseFloat(s.Source[s.start:s.current], 64)
+	if err != nil {
+		ReportParserError(s.line, "unable to parse number "+s.Source[s.start:s.current])
+		return
+	}
 	s.addTokenLiteral(NUMBER, value)
 }
 

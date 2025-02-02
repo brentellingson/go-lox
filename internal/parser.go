@@ -71,7 +71,7 @@ func (t *Parser) Match(types ...TokenType) bool {
 func (p *Parser) Parse() Expr {
 	expr, err := p.expression()
 	if err != nil {
-		Error(p.Current().Line, err.Error())
+		ReportParserError(p.Current().Line, err.Error())
 	}
 	return expr
 }

@@ -27,7 +27,7 @@ func runFile(path string) {
 		panic("error reading file " + path)
 	}
 	run(string(bytes))
-	if internal.HadError {
+	if internal.HadParserError {
 		os.Exit(65)
 	}
 }
@@ -41,7 +41,7 @@ func runPrompt() {
 		}
 		line := scanner.Text()
 		run(line)
-		internal.HadError = false
+		internal.HadParserError = false
 	}
 
 	if err := scanner.Err(); err != nil {

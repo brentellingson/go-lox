@@ -2,13 +2,17 @@ package internal
 
 import "fmt"
 
-func Error(line int, message string) {
-	Report(line, "", message)
+var (
+	HadParserError  = false
+	HadRuntimeError = false
+)
+
+func ReportParserError(line int, message string) {
+	fmt.Printf("[line %d] Parse Error: %s\n", line, message)
+	HadParserError = true
 }
 
-var HadError = false
-
-func Report(line int, where string, message string) {
-	fmt.Printf("[line %d] Error %s: %s\n", line, where, message)
-	HadError = true
+func ReportRuntimeError(err error) {
+	fmt.Println(err.Error())
+	HadRuntimeError = true
 }
