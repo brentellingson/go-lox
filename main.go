@@ -6,6 +6,9 @@ import (
 	"os"
 
 	"github.com/brentellingson/go-lox/internal"
+	"github.com/brentellingson/go-lox/internal/parse"
+	"github.com/brentellingson/go-lox/internal/scan"
+	"github.com/brentellingson/go-lox/internal/vm"
 )
 
 func main() {
@@ -30,6 +33,9 @@ func runFile(path string) {
 	if internal.HadParserError {
 		os.Exit(65)
 	}
+	if internal.HadRuntimeError {
+		os.Exit(70)
+	}
 }
 
 func runPrompt() {
@@ -42,6 +48,7 @@ func runPrompt() {
 		line := scanner.Text()
 		run(line)
 		internal.HadParserError = false
+		internal.HadRuntimeError = false
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -50,14 +57,15 @@ func runPrompt() {
 }
 
 func run(source string) {
-	scanner := internal.NewScanner(source)
+	scanner := scan.NewScanner(source)
 	tokens := scanner.ScanTokens()
-	parser := internal.NewParser(tokens)
+	parser := parse.NewParser(tokens)
 	expr := parser.Parse()
 
 	if internal.HadParserError {
 		return
 	}
 
-	fmt.Println(internal.PrintAst(expr))
+	interpreter := vm.Interpreter{}
+	interpreter.Interpret(expr)
 }

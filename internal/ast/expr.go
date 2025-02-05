@@ -1,4 +1,10 @@
-package internal
+package ast
+
+import "github.com/brentellingson/go-lox/internal/token"
+
+type Expression struct {
+	Expression Expr
+}
 
 type Expr interface {
 	Accept(v Visitor) (any, error)
@@ -13,7 +19,7 @@ type Visitor interface {
 
 type Binary struct {
 	Left     Expr
-	Operator Token
+	Operator token.Token
 	Right    Expr
 }
 
@@ -38,7 +44,7 @@ func (e *Literal) Accept(v Visitor) (any, error) {
 }
 
 type Unary struct {
-	Operator Token
+	Operator token.Token
 	Right    Expr
 }
 

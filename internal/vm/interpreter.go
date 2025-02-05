@@ -1,13 +1,19 @@
-package internal
+package vm
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/brentellingson/go-lox/internal"
+	"github.com/brentellingson/go-lox/internal/ast"
+	"github.com/brentellingson/go-lox/internal/token"
+)
 
 type RuntimeError struct {
-	token   Token
+	token   token.Token
 	message string
 }
 
-func NewRuntimeError(token Token, message string) *RuntimeError {
+func NewRuntimeError(token token.Token, message string) *RuntimeError {
 	return &RuntimeError{token: token, message: message}
 }
 
@@ -17,16 +23,16 @@ func (e *RuntimeError) Error() string {
 
 type Interpreter struct{}
 
-func (i *Interpreter) Interpret(expr Expr) {
+func (i *Interpreter) Interpret(expr ast.Expr) {
 	result, err := expr.Accept(&Interpreter{})
 	if err != nil {
-		ReportRuntimeError(err)
+		internal.ReportRuntimeError(err)
 		return
 	}
 	fmt.Println(result)
 }
 
-func (i *Interpreter) Evaluate(expr Expr) (any, error) {
+func (i *Interpreter) Evaluate(expr ast.Expr) (any, error) {
 	return expr.Accept(i)
 }
 
@@ -39,7 +45,7 @@ func checkNumberOperands(left, right any) (float64, float64, bool) {
 	return 0, 0, false
 }
 
-func (i *Interpreter) VisitBinaryExpr(expr *Binary) (any, error) {
+func (i *Interpreter) VisitBinaryExpr(expr *ast.Binary) (any, error) {
 	left, err := i.Evaluate(expr.Left)
 	if err != nil {
 		return nil, err
@@ -51,42 +57,42 @@ func (i *Interpreter) VisitBinaryExpr(expr *Binary) (any, error) {
 	}
 
 	switch expr.Operator.Type {
-	case EQUAL_EQUAL:
+	case token.EQUAL_EQUAL:
 		return left == right, nil
-	case BANG_EQUAL:
+	case token.BANG_EQUAL:
 		return left != right, nil
-	case PLUS:
+	case token.PLUS:
 		if left, right, ok := checkNumberOperands(left, right); ok {
 			return left + right, nil
 		}
 		if left, ok := left.(string); ok {
 			return left + fmt.Sprintf("%v", right), nil
 		}
-	case MINUS:
+	case token.MINUS:
 		if left, right, ok := checkNumberOperands(left, right); ok {
 			return left - right, nil
 		}
-	case STAR:
+	case token.STAR:
 		if left, right, ok := checkNumberOperands(left, right); ok {
 			return left * right, nil
 		}
-	case SLASH:
+	case token.SLASH:
 		if left, right, ok := checkNumberOperands(left, right); ok {
 			return left / right, nil
 		}
-	case GREATER:
+	case token.GREATER:
 		if left, right, ok := checkNumberOperands(left, right); ok {
 			return left > right, nil
 		}
-	case GREATER_EQUAL:
+	case token.GREATER_EQUAL:
 		if left, right, ok := checkNumberOperands(left, right); ok {
 			return left >= right, nil
 		}
-	case LESS:
+	case token.LESS:
 		if left, right, ok := checkNumberOperands(left, right); ok {
 			return left < right, nil
 		}
-	case LESS_EQUAL:
+	case token.LESS_EQUAL:
 		if left, right, ok := checkNumberOperands(left, right); ok {
 			return left <= right, nil
 		}
@@ -95,25 +101,25 @@ func (i *Interpreter) VisitBinaryExpr(expr *Binary) (any, error) {
 	return nil, NewRuntimeError(expr.Operator, fmt.Sprintf("binary operator %v not supported for types %T, %T", expr.Operator.Type, left, right))
 }
 
-func (i *Interpreter) VisitGroupingExpr(expr *Grouping) (any, error) {
+func (i *Interpreter) VisitGroupingExpr(expr *ast.Grouping) (any, error) {
 	return i.Evaluate(expr.Expression)
 }
 
-func (i *Interpreter) VisitLiteralExpr(expr *Literal) (any, error) {
+func (i *Interpreter) VisitLiteralExpr(expr *ast.Literal) (any, error) {
 	return expr.Value, nil
 }
 
-func (i *Interpreter) VisitUnaryExpr(expr *Unary) (any, error) {
+func (i *Interpreter) VisitUnaryExpr(expr *ast.Unary) (any, error) {
 	right, err := i.Evaluate(expr.Right)
 	if err != nil {
 		return nil, err
 	}
 	switch expr.Operator.Type {
-	case MINUS:
+	case token.MINUS:
 		if right, ok := right.(float64); ok {
 			return -right, nil
 		}
-	case BANG:
+	case token.BANG:
 		return !isTruthy(right), nil
 	}
 	return nil, NewRuntimeError(expr.Operator, fmt.Sprintf("unary operator %v not supported for type %T", expr.Operator.Type, right))

@@ -3,9 +3,11 @@ package internal
 import (
 	"fmt"
 	"strings"
+
+	"github.com/brentellingson/go-lox/internal/ast"
 )
 
-func PrintAst(expr Expr) string {
+func PrintAst(expr ast.Expr) string {
 	result, err := expr.Accept(&AstPrinter{})
 	if err != nil {
 		return fmt.Sprintf("error: %v", err)
@@ -15,23 +17,23 @@ func PrintAst(expr Expr) string {
 
 type AstPrinter struct{}
 
-func (p *AstPrinter) VisitBinaryExpr(expr *Binary) (any, error) {
+func (p *AstPrinter) VisitBinaryExpr(expr *ast.Binary) (any, error) {
 	return p.parenthesize(expr.Operator.Lexeme, expr.Left, expr.Right)
 }
 
-func (p *AstPrinter) VisitGroupingExpr(expr *Grouping) (any, error) {
+func (p *AstPrinter) VisitGroupingExpr(expr *ast.Grouping) (any, error) {
 	return p.parenthesize("group", expr.Expression)
 }
 
-func (p *AstPrinter) VisitLiteralExpr(expr *Literal) (any, error) {
+func (p *AstPrinter) VisitLiteralExpr(expr *ast.Literal) (any, error) {
 	return fmt.Sprintf("%#v", expr.Value), nil
 }
 
-func (p *AstPrinter) VisitUnaryExpr(expr *Unary) (any, error) {
+func (p *AstPrinter) VisitUnaryExpr(expr *ast.Unary) (any, error) {
 	return p.parenthesize(expr.Operator.Lexeme, expr.Right)
 }
 
-func (p *AstPrinter) parenthesize(name string, exprs ...Expr) (any, error) {
+func (p *AstPrinter) parenthesize(name string, exprs ...ast.Expr) (any, error) {
 	var b strings.Builder
 	b.WriteRune('(')
 	b.WriteString(name)
