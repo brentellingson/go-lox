@@ -20,7 +20,13 @@ func (e *RuntimeError) Error() string {
 	return fmt.Sprintf("runtime error: %v at line %v", e.message, e.token.Line)
 }
 
-type Interpreter struct{}
+type Interpreter struct {
+	env *Environment
+}
+
+func NewInterpreter() *Interpreter {
+	return &Interpreter{env: NewEnvironment()}
+}
 
 func (i *Interpreter) Interpret(stmts []ast.Stmt) (any, error) {
 	var rslt any
@@ -52,6 +58,19 @@ func (i *Interpreter) VisitPrintStmt(stmt *ast.Print) (any, error) {
 		return nil, err
 	}
 	fmt.Println(rslt)
+	return nil, nil
+}
+
+func (i *Interpreter) VisitVarStmt(stmt *ast.Var) (any, error) {
+	var rslt any
+	if stmt.Expr != nil {
+		var err error
+		rslt, err = i.Evaluate(stmt.Expr)
+		if err != nil {
+			return nil, err
+		}
+	}
+	i.env.Define(stmt.Name.Lexeme, rslt)
 	return nil, nil
 }
 
@@ -142,6 +161,25 @@ func (i *Interpreter) VisitUnaryExpr(expr *ast.Unary) (any, error) {
 		return !isTruthy(right), nil
 	}
 	return nil, NewRuntimeError(expr.Operator, fmt.Sprintf("unary operator %v not supported for type %T", expr.Operator.Type, right))
+}
+
+func (i *Interpreter) VisitVariableExpr(expr *ast.Variable) (any, error) {
+	v, ok := i.env.Get(expr.Name.Lexeme)
+	if !ok {
+		return nil, &RuntimeError{token: expr.Name, message: "undefined variable " + expr.Name.Lexeme}
+	}
+	return v, nil
+}
+
+func (i *Interpreter) VisitAssignExpr(expr *ast.Assign) (any, error) {
+	value, err := i.Evaluate(expr.Value)
+	if err != nil {
+		return nil, err
+	}
+	if ok := i.env.Assign(expr.Name.Lexeme, value); !ok {
+		return nil, &RuntimeError{token: expr.Name, message: "undefined variable " + expr.Name.Lexeme}
+	}
+	return value, nil
 }
 
 func isTruthy(v any) bool {

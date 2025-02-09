@@ -33,7 +33,7 @@ func (p *Parser) Parse() ([]ast.Stmt, error) {
 	var errs []error
 	var stmts []ast.Stmt
 	for !p.buff.IsAtEnd() {
-		stmt, err := p.statement()
+		stmt, err := p.declaration()
 		if err != nil {
 			errs = append(errs, err)
 			p.synchronize()
@@ -63,6 +63,35 @@ func (p *Parser) synchronize() {
 			return
 		}
 	}
+}
+
+func (p *Parser) declaration() (ast.Stmt, error) {
+	if p.buff.Match(token.VAR) {
+		return p.varStatement()
+	}
+	return p.statement()
+}
+
+func (p *Parser) varStatement() (ast.Stmt, error) {
+	if !p.buff.Check(token.IDENTIFIER) {
+		return nil, &ParseError{p.buff.Current(), "Expect variable name."}
+	}
+	name := p.buff.Advance()
+
+	var initializer ast.Expr
+	if p.buff.Match(token.EQUAL) {
+		var err error
+		initializer, err = p.expression()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if !p.buff.Match(token.SEMICOLON) && !p.buff.IsAtEnd() {
+		return nil, &ParseError{p.buff.Current(), "Expect ';' after value."}
+	}
+
+	return &ast.Var{Name: name, Expr: initializer}, nil
 }
 
 func (p *Parser) statement() (ast.Stmt, error) {
@@ -96,7 +125,26 @@ func (p *Parser) expressionStatement() (ast.Stmt, error) {
 }
 
 func (p *Parser) expression() (ast.Expr, error) {
-	return p.equality()
+	return p.assignment()
+}
+
+func (p *Parser) assignment() (ast.Expr, error) {
+	expr, err := p.equality()
+	if err != nil {
+		return nil, err
+	}
+	if p.buff.Check(token.EQUAL) {
+		equals := p.buff.Advance()
+		value, err := p.assignment()
+		if err != nil {
+			return nil, err
+		}
+		if variable, ok := expr.(*ast.Variable); ok {
+			return &ast.Assign{Name: variable.Name, Value: value}, nil
+		}
+		return nil, &ParseError{equals, "Invalid assignment target."}
+	}
+	return expr, nil
 }
 
 func (p *Parser) equality() (ast.Expr, error) {
@@ -194,6 +242,10 @@ func (p *Parser) primary() (ast.Expr, error) {
 
 	if p.buff.Check(token.NUMBER, token.STRING) {
 		return &ast.Literal{Value: p.buff.Advance().Literal}, nil
+	}
+
+	if p.buff.Check(token.IDENTIFIER) {
+		return &ast.Variable{Name: p.buff.Advance()}, nil
 	}
 
 	if p.buff.Match(token.LEFT_PAREN) {

@@ -33,6 +33,14 @@ func (p *AstPrinter) VisitUnaryExpr(expr *ast.Unary) (any, error) {
 	return p.parenthesize(expr.Operator.Lexeme, expr.Right)
 }
 
+func (p *AstPrinter) VisitVariableExpr(expr *ast.Variable) (any, error) {
+	return expr.Name.Lexeme, nil
+}
+
+func (p *AstPrinter) VisitAssignExpr(expr *ast.Assign) (any, error) {
+	return p.parenthesize("set! "+expr.Name.Lexeme, expr.Value)
+}
+
 func (p *AstPrinter) parenthesize(name string, exprs ...ast.Expr) (any, error) {
 	var b strings.Builder
 	b.WriteRune('(')

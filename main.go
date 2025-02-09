@@ -38,7 +38,7 @@ func runFile(path string) {
 }
 
 func runPrompt() {
-	repl := repl.NewRepl(scan.Scan, parse.Parse, &engine.Interpreter{})
+	repl := repl.NewRepl(scan.Scan, parse.Parse, engine.NewInterpreter())
 	scanner := bufio.NewScanner(os.Stdin)
 	for {
 		fmt.Print("> ")
