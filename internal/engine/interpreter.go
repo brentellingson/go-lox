@@ -1,9 +1,8 @@
-package vm
+package engine
 
 import (
 	"fmt"
 
-	"github.com/brentellingson/go-lox/internal"
 	"github.com/brentellingson/go-lox/internal/ast"
 	"github.com/brentellingson/go-lox/internal/token"
 )
@@ -23,13 +22,8 @@ func (e *RuntimeError) Error() string {
 
 type Interpreter struct{}
 
-func (i *Interpreter) Interpret(expr ast.Expr) {
-	result, err := expr.Accept(&Interpreter{})
-	if err != nil {
-		internal.ReportRuntimeError(err)
-		return
-	}
-	fmt.Println(result)
+func (i *Interpreter) Interpret(expr ast.Expr) (any, error) {
+	return expr.Accept(&Interpreter{})
 }
 
 func (i *Interpreter) Evaluate(expr ast.Expr) (any, error) {

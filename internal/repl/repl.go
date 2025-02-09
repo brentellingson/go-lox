@@ -1,123 +1,38 @@
-// package repl implements the Read-Eval-Print-Loop for the Lox Programming Language.
 package repl
 
 import (
-	"errors"
-
+	"github.com/brentellingson/go-lox/internal/ast"
 	"github.com/brentellingson/go-lox/internal/token"
 )
 
-var (
-	ParseError          = errors.New("parse error")
-	IncompleteStatement = errors.New("incomplete statement")
-)
-
-type TokenBuffer interface {
-	Append(tokens []token.Token)
-	IsAtEnd() bool
+type Interpreter interface {
+	Interpret(statements ast.Expr) (any, error)
 }
 
-// type Reader interface {
-// 	Read(prompt string) ([]rune, error)
-// }
+type Repl struct {
+	Scan        func(source string) ([]token.Token, error)
+	Parse       func(tokens []token.Token) (ast.Expr, error)
+	Interpreter Interpreter
+}
 
-// type Scanner interface {
-// 	Scan(text []rune) ([]token.Token, error)
-// }
+func NewRepl(scan func(source string) ([]token.Token, error), parse func(tokens []token.Token) (ast.Expr, error), interpreter Interpreter) *Repl {
+	return &Repl{
+		Scan:        scan,
+		Parse:       parse,
+		Interpreter: interpreter,
+	}
+}
 
-// type Parser interface {
-// 	Parse(tokens TokenBuffer) (ast.Stmt, error)
-// 	Synchronize(tokens TokenBuffer)
-// }
+func (r *Repl) Run(source string) (any, error) {
+	tokens, err := r.Scan(source)
+	if err != nil {
+		return nil, err
+	}
 
-// type Interpreter interface {
-// 	Interpret(statements []internal.Stmt) any
-// }
+	expr, err := r.Parse(tokens)
+	if err != nil {
+		return nil, err
+	}
 
-// Read-Eval-Print does this:
-// while !bailout && !done{}
-//    text, err = read()
-//    tokens, err = scan(text)
-//    if
-//    tokenbuff.append(tokens)
-// }
-// Read One Line
-// Scan it into tokens
-// if can't scan, print error and return
-// Parse into a statement
-// if not bailoout and incomplete statment, read and tokenize another line
-// if syntax error, read to next sync point
-
-// type Repl struct {
-// 	reader      Reader
-// 	scanner     Scanner
-// 	buffer      func([]token.Token) TokenBuffer
-// 	parser      Parser
-// 	interpreter Interpreter
-// }
-
-// func New() *Repl {
-// 	return &Repl{}
-// }
-
-// // Read reads a line of input, scans it into tokens, parses the tokens into statements, and returns the statements.
-// // If there are any errors, it returns the errors.
-// // If the input is incomplete, it reads more input and continues parsing.
-// func (r *Repl) Read() ([]internal.Stmt, error) {
-// 	var errs []error
-// 	var stmts []internal.Stmt
-
-// 	text, err := r.reader.Read(">>> ")
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	tokens, err := r.scanner.Scan(text)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	buffer := r.buffer(tokens)
-
-// 	for !buffer.IsAtEnd() {
-// 		stmt, err := r.parser.Parse(buffer)
-// 		if errors.Is(err, IncompleteStatement) && len(errs) == 0 {
-// 			// incomplete statement but no syntax errors yet; ask for more input and keep going
-// 			text, err2 := r.reader.Read("... ")
-// 			if err2 == io.EOF {
-// 				// user hit Ctrl-D/Ctrl-Z; stop parsing
-// 				errs = append(errs, err)
-// 				break
-// 			}
-// 			if err2 != nil {
-// 				// some other error; stop parsing
-// 				errs = append(errs, err, err2)
-// 				break
-// 			}
-// 			tokens, err2 := r.scanner.Scan(text)
-// 			if err2 != nil {
-// 				// couldn't scan the input; stop parsing
-// 				errs = append(errs, err2)
-// 				break
-// 			}
-// 			buffer.Append(tokens)
-// 			continue
-// 		}
-// 		if errors.Is(err, ParseError) {
-// 			// syntax error; synchronize and try keep going
-// 			errs = append(errs, err)
-// 			r.parser.Synchronize(buffer)
-// 			continue
-// 		}
-// 		if err != nil {
-// 			// some other error; stop parsing
-// 			errs = append(errs, err)
-// 			break
-// 		}
-// 		if stmt != nil {
-// 			stmts = append(stmts, stmt)
-// 		}
-// 	}
-// 	if len(errs) > 0 {
-// 		return nil, errors.Join(errs...)
-// 	}
-// 	return stmts, nil
-// }
+	return r.Interpreter.Interpret(expr)
+}

@@ -1,10 +1,10 @@
 package scan
 
 import (
+	"fmt"
 	"strconv"
 	"unicode/utf8"
 
-	"github.com/brentellingson/go-lox/internal"
 	"github.com/brentellingson/go-lox/internal/token"
 )
 
@@ -27,12 +27,31 @@ var reserved = map[string]token.TokenType{
 	"while":  token.WHILE,
 }
 
+type ScanError struct {
+	Line    int
+	Message string
+}
+
+func NewScanError(line int, message string) *ScanError {
+	return &ScanError{Line: line, Message: message}
+}
+
+func (e *ScanError) Error() string {
+	return fmt.Sprintf("Scan Error on Line %v: %v", e.Line, e.Message)
+}
+
+func Scan(source string) ([]token.Token, error) {
+	scanner := NewScanner(source)
+	return scanner.ScanTokens(), nil
+}
+
 type Scanner struct {
 	Source  string
 	Tokens  []token.Token
 	start   int
 	current int
 	line    int
+	errs    []error
 }
 
 func NewScanner(source string) *Scanner {
@@ -119,7 +138,7 @@ func (s *Scanner) scanToken() {
 		} else if s.isAlpha(c) {
 			s.identifier()
 		} else {
-			internal.ReportParserError(s.line, "Unexpected character "+string(c))
+			s.errs = append(s.errs, NewScanError(s.line, "Unexpected character "+string(c)))
 		}
 	}
 }
@@ -133,7 +152,7 @@ func (s *Scanner) string() {
 	}
 
 	if s.isAtEnd() {
-		internal.ReportParserError(s.line, "Unterminated string.")
+		s.errs = append(s.errs, NewScanError(s.line, "Unterminated string."))
 		return
 	}
 
@@ -157,7 +176,7 @@ func (s *Scanner) number() {
 
 	value, err := strconv.ParseFloat(s.Source[s.start:s.current], 64)
 	if err != nil {
-		internal.ReportParserError(s.line, "unable to parse number "+s.Source[s.start:s.current])
+		s.errs = append(s.errs, NewScanError(s.line, "unable to parse number "+s.Source[s.start:s.current]))
 		return
 	}
 	s.addTokenLiteral(token.NUMBER, value)

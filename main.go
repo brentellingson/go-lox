@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/brentellingson/go-lox/internal"
+	"github.com/brentellingson/go-lox/internal/engine"
 	"github.com/brentellingson/go-lox/internal/parse"
+	"github.com/brentellingson/go-lox/internal/repl"
 	"github.com/brentellingson/go-lox/internal/scan"
-	"github.com/brentellingson/go-lox/internal/vm"
 )
 
 func main() {
@@ -29,16 +29,16 @@ func runFile(path string) {
 	if err != nil {
 		panic("error reading file " + path)
 	}
-	run(string(bytes))
-	if internal.HadParserError {
-		os.Exit(65)
-	}
-	if internal.HadRuntimeError {
-		os.Exit(70)
+	repl := repl.NewRepl(scan.Scan, parse.Parse, &engine.Interpreter{})
+	_, err = repl.Run(string(bytes))
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
 }
 
 func runPrompt() {
+	repl := repl.NewRepl(scan.Scan, parse.Parse, &engine.Interpreter{})
 	scanner := bufio.NewScanner(os.Stdin)
 	for {
 		fmt.Print("> ")
@@ -46,26 +46,15 @@ func runPrompt() {
 			break
 		}
 		line := scanner.Text()
-		run(line)
-		internal.HadParserError = false
-		internal.HadRuntimeError = false
+		rslt, err := repl.Run(line)
+		if err != nil {
+			fmt.Println(err)
+		} else {
+			fmt.Println(rslt)
+		}
 	}
 
 	if err := scanner.Err(); err != nil {
 		panic("error reading input")
 	}
-}
-
-func run(source string) {
-	scanner := scan.NewScanner(source)
-	tokens := scanner.ScanTokens()
-	parser := parse.NewParser(tokens)
-	expr := parser.Parse()
-
-	if internal.HadParserError {
-		return
-	}
-
-	interpreter := vm.Interpreter{}
-	interpreter.Interpret(expr)
 }
