@@ -6,16 +6,20 @@ import (
 )
 
 type Interpreter interface {
-	Interpret(statements ast.Expr) (any, error)
+	Interpret(statements []ast.Stmt) (any, error)
 }
 
 type Repl struct {
 	Scan        func(source string) ([]token.Token, error)
-	Parse       func(tokens []token.Token) (ast.Expr, error)
+	Parse       func(tokens []token.Token) ([]ast.Stmt, error)
 	Interpreter Interpreter
 }
 
-func NewRepl(scan func(source string) ([]token.Token, error), parse func(tokens []token.Token) (ast.Expr, error), interpreter Interpreter) *Repl {
+func NewRepl(
+	scan func(source string) ([]token.Token, error),
+	parse func(tokens []token.Token) ([]ast.Stmt, error),
+	interpreter Interpreter,
+) *Repl {
 	return &Repl{
 		Scan:        scan,
 		Parse:       parse,

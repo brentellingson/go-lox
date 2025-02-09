@@ -22,12 +22,37 @@ func (e *RuntimeError) Error() string {
 
 type Interpreter struct{}
 
-func (i *Interpreter) Interpret(expr ast.Expr) (any, error) {
-	return expr.Accept(&Interpreter{})
+func (i *Interpreter) Interpret(stmts []ast.Stmt) (any, error) {
+	var rslt any
+	for _, stmt := range stmts {
+		var err error
+		rslt, err = i.execute(stmt)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return rslt, nil
+}
+
+func (i *Interpreter) execute(stmt ast.Stmt) (any, error) {
+	return stmt.Accept(i)
 }
 
 func (i *Interpreter) Evaluate(expr ast.Expr) (any, error) {
 	return expr.Accept(i)
+}
+
+func (i *Interpreter) VisitExpressionStmt(stmt *ast.Expression) (any, error) {
+	return i.Evaluate(stmt.Expression)
+}
+
+func (i *Interpreter) VisitPrintStmt(stmt *ast.Print) (any, error) {
+	rslt, err := i.Evaluate(stmt.Expression)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println(rslt)
+	return nil, nil
 }
 
 func checkNumberOperands(left, right any) (float64, float64, bool) {

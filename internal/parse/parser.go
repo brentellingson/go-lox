@@ -1,6 +1,8 @@
 package parse
 
 import (
+	"errors"
+
 	"github.com/brentellingson/go-lox/internal/ast"
 	"github.com/brentellingson/go-lox/internal/token"
 )
@@ -14,7 +16,7 @@ func (e *ParseError) Error() string {
 	return "Parse Error " + e.Token.String() + ": " + e.Message
 }
 
-func Parse(tokens []token.Token) (ast.Expr, error) {
+func Parse(tokens []token.Token) ([]ast.Stmt, error) {
 	parser := NewParser(tokens)
 	return parser.Parse()
 }
@@ -27,9 +29,70 @@ func NewParser(tokens []token.Token) *Parser {
 	return &Parser{buff: NewTokenBuffer(tokens)}
 }
 
-func (p *Parser) Parse() (ast.Expr, error) {
+func (p *Parser) Parse() ([]ast.Stmt, error) {
+	var errs []error
+	var stmts []ast.Stmt
+	for !p.buff.IsAtEnd() {
+		stmt, err := p.statement()
+		if err != nil {
+			errs = append(errs, err)
+			p.synchronize()
+		} else {
+			stmts = append(stmts, stmt)
+		}
+	}
+	return stmts, errors.Join(errs...)
+}
+
+func (p *Parser) synchronize() {
+	for !p.buff.IsAtEnd() {
+		prev := p.buff.Advance()
+		if prev.Type == token.SEMICOLON {
+			return
+		}
+		if p.buff.Check(
+			token.CLASS,
+			token.FOR,
+			token.FUN,
+			token.IF,
+			token.PRINT,
+			token.RETURN,
+			token.VAR,
+			token.WHILE,
+		) {
+			return
+		}
+	}
+}
+
+func (p *Parser) statement() (ast.Stmt, error) {
+	if p.buff.Match(token.PRINT) {
+		return p.printStatement()
+	}
+
+	return p.expressionStatement()
+}
+
+func (p *Parser) printStatement() (ast.Stmt, error) {
 	expr, err := p.expression()
-	return expr, err
+	if err != nil {
+		return nil, err
+	}
+	if !p.buff.Match(token.SEMICOLON) && !p.buff.IsAtEnd() {
+		return nil, &ParseError{p.buff.Current(), "Expect ';' after value."}
+	}
+	return &ast.Print{Expression: expr}, nil
+}
+
+func (p *Parser) expressionStatement() (ast.Stmt, error) {
+	expr, err := p.expression()
+	if err != nil {
+		return nil, err
+	}
+	if !p.buff.Match(token.SEMICOLON) && !p.buff.IsAtEnd() {
+		return nil, &ParseError{p.buff.Current(), "Expect ';' after expression."}
+	}
+	return &ast.Expression{Expression: expr}, nil
 }
 
 func (p *Parser) expression() (ast.Expr, error) {

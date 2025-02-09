@@ -49,7 +49,7 @@ func runPrompt() {
 		rslt, err := repl.Run(line)
 		if err != nil {
 			fmt.Println(err)
-		} else {
+		} else if rslt != nil {
 			fmt.Println(rslt)
 		}
 	}
