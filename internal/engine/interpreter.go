@@ -74,6 +74,23 @@ func (i *Interpreter) VisitVarStmt(stmt *ast.Var) (any, error) {
 	return nil, nil
 }
 
+func (i *Interpreter) VisitBlockStmt(stmt *ast.Block) (any, error) {
+	i.env = i.env.Wrap()
+	defer func() {
+		i.env = i.env.Unwrap()
+	}()
+
+	var rslt any
+	for _, s := range stmt.Statements {
+		var err error
+		rslt, err = i.execute(s)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return rslt, nil
+}
+
 func checkNumberOperands(left, right any) (float64, float64, bool) {
 	if left, ok := left.(float64); ok {
 		if right, ok := right.(float64); ok {

@@ -1,11 +1,20 @@
 package engine
 
 type Environment struct {
-	values map[string]any
+	enclosing *Environment
+	values    map[string]any
 }
 
 func NewEnvironment() *Environment {
 	return &Environment{values: make(map[string]any)}
+}
+
+func (e *Environment) Wrap() *Environment {
+	return &Environment{enclosing: e, values: make(map[string]any)}
+}
+
+func (e *Environment) Unwrap() *Environment {
+	return e.enclosing
 }
 
 func (e *Environment) Define(name string, value any) {
@@ -21,6 +30,13 @@ func (e *Environment) Assign(name string, value any) bool {
 }
 
 func (e *Environment) Get(name string) (any, bool) {
-	value, ok := e.values[name]
-	return value, ok
+	if value, ok := e.values[name]; ok {
+		return value, true
+	}
+
+	if e.enclosing != nil {
+		return e.enclosing.Get(name)
+	}
+
+	return nil, false
 }

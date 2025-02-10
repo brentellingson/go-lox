@@ -29,7 +29,7 @@ func runFile(path string) {
 	if err != nil {
 		panic("error reading file " + path)
 	}
-	repl := repl.NewRepl(scan.Scan, parse.Parse, &engine.Interpreter{})
+	repl := repl.NewRepl(scan.Scan, parse.Parse, engine.NewInterpreter())
 	_, err = repl.Run(string(bytes))
 	if err != nil {
 		fmt.Println(err)

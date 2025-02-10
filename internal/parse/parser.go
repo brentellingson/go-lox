@@ -69,6 +69,10 @@ func (p *Parser) declaration() (ast.Stmt, error) {
 	if p.buff.Match(token.VAR) {
 		return p.varStatement()
 	}
+	if p.buff.Match(token.LEFT_BRACE) {
+		return p.blockStatement()
+	}
+
 	return p.statement()
 }
 
@@ -92,6 +96,21 @@ func (p *Parser) varStatement() (ast.Stmt, error) {
 	}
 
 	return &ast.Var{Name: name, Expr: initializer}, nil
+}
+
+func (p *Parser) blockStatement() (ast.Stmt, error) {
+	var stmts []ast.Stmt
+	for !p.buff.IsAtEnd() && !p.buff.Check(token.RIGHT_BRACE) {
+		stmt, err := p.declaration()
+		if err != nil {
+			return nil, err
+		}
+		stmts = append(stmts, stmt)
+	}
+	if !p.buff.Match(token.RIGHT_BRACE) {
+		return nil, &ParseError{p.buff.Current(), "Expect '}' after block."}
+	}
+	return &ast.Block{Statements: stmts}, nil
 }
 
 func (p *Parser) statement() (ast.Stmt, error) {
