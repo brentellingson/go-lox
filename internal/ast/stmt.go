@@ -11,6 +11,8 @@ type StmtVisitor interface {
 	VisitPrintStmt(stmt *Print) (any, error)
 	VisitVarStmt(stmt *Var) (any, error)
 	VisitBlockStmt(stmt *Block) (any, error)
+	VisitIfStmt(stmt *If) (any, error)
+	VisitWhileStmt(stmt *While) (any, error)
 }
 
 type Print struct {
@@ -30,8 +32,8 @@ func (e *Expression) Accept(v StmtVisitor) (any, error) {
 }
 
 type Var struct {
-	Name token.Token
-	Expr Expr
+	Name       token.Token
+	Expression Expr
 }
 
 func (e *Var) Accept(v StmtVisitor) (any, error) {
@@ -44,4 +46,23 @@ type Block struct {
 
 func (e *Block) Accept(v StmtVisitor) (any, error) {
 	return v.VisitBlockStmt(e)
+}
+
+type If struct {
+	Condition  Expr
+	ThenBranch Stmt
+	ElseBranch Stmt
+}
+
+func (e *If) Accept(v StmtVisitor) (any, error) {
+	return v.VisitIfStmt(e)
+}
+
+type While struct {
+	Condition Expr
+	Body      Stmt
+}
+
+func (e *While) Accept(v StmtVisitor) (any, error) {
+	return v.VisitWhileStmt(e)
 }

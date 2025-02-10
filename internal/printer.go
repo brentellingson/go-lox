@@ -41,6 +41,10 @@ func (p *AstPrinter) VisitAssignExpr(expr *ast.Assign) (any, error) {
 	return p.parenthesize("set! "+expr.Name.Lexeme, expr.Value)
 }
 
+func (p *AstPrinter) VisitLogicalExpr(expr *ast.Logical) (any, error) {
+	return p.parenthesize(expr.Operator.Lexeme, expr.Left, expr.Right)
+}
+
 func (p *AstPrinter) parenthesize(name string, exprs ...ast.Expr) (any, error) {
 	var b strings.Builder
 	b.WriteRune('(')

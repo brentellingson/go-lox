@@ -22,11 +22,16 @@ func (e *Environment) Define(name string, value any) {
 }
 
 func (e *Environment) Assign(name string, value any) bool {
-	if _, ok := e.values[name]; !ok {
-		return false
+	if _, ok := e.values[name]; ok {
+		e.values[name] = value
+		return true
 	}
-	e.values[name] = value
-	return true
+
+	if e.enclosing != nil {
+		return e.enclosing.Assign(name, value)
+	}
+
+	return false
 }
 
 func (e *Environment) Get(name string) (any, bool) {

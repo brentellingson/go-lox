@@ -16,6 +16,10 @@ func NewRuntimeError(token token.Token, message string) *RuntimeError {
 	return &RuntimeError{token: token, message: message}
 }
 
+func UnimplementedError(token token.Token) *RuntimeError {
+	return &RuntimeError{token: token, message: "unimplemented"}
+}
+
 func (e *RuntimeError) Error() string {
 	return fmt.Sprintf("runtime error: %v at line %v", e.message, e.token.Line)
 }
@@ -63,9 +67,9 @@ func (i *Interpreter) VisitPrintStmt(stmt *ast.Print) (any, error) {
 
 func (i *Interpreter) VisitVarStmt(stmt *ast.Var) (any, error) {
 	var rslt any
-	if stmt.Expr != nil {
+	if stmt.Expression != nil {
 		var err error
-		rslt, err = i.Evaluate(stmt.Expr)
+		rslt, err = i.Evaluate(stmt.Expression)
 		if err != nil {
 			return nil, err
 		}
@@ -84,6 +88,37 @@ func (i *Interpreter) VisitBlockStmt(stmt *ast.Block) (any, error) {
 	for _, s := range stmt.Statements {
 		var err error
 		rslt, err = i.execute(s)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return rslt, nil
+}
+
+func (i *Interpreter) VisitIfStmt(stmt *ast.If) (any, error) {
+	v, err := i.Evaluate(stmt.Condition)
+	if err != nil {
+		return nil, err
+	}
+	if isTruthy(v) {
+		return i.execute(stmt.ThenBranch)
+	} else if stmt.ElseBranch != nil {
+		return i.execute(stmt.ElseBranch)
+	}
+	return nil, nil
+}
+
+func (i *Interpreter) VisitWhileStmt(stmt *ast.While) (any, error) {
+	var rslt any
+	for {
+		v, err := i.Evaluate(stmt.Condition)
+		if err != nil {
+			return nil, err
+		}
+		if !isTruthy(v) {
+			break
+		}
+		rslt, err = i.execute(stmt.Body)
 		if err != nil {
 			return nil, err
 		}
@@ -197,6 +232,21 @@ func (i *Interpreter) VisitAssignExpr(expr *ast.Assign) (any, error) {
 		return nil, &RuntimeError{token: expr.Name, message: "undefined variable " + expr.Name.Lexeme}
 	}
 	return value, nil
+}
+
+func (i *Interpreter) VisitLogicalExpr(expr *ast.Logical) (any, error) {
+	left, err := i.Evaluate(expr.Left)
+	if err != nil {
+		return nil, err
+	}
+	if expr.Operator.Type == token.OR && isTruthy(left) {
+		return left, nil
+	}
+	if expr.Operator.Type == token.AND && !isTruthy(left) {
+		return left, nil
+	}
+
+	return i.Evaluate(expr.Right)
 }
 
 func isTruthy(v any) bool {

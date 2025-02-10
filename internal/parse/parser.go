@@ -69,9 +69,6 @@ func (p *Parser) declaration() (ast.Stmt, error) {
 	if p.buff.Match(token.VAR) {
 		return p.varStatement()
 	}
-	if p.buff.Match(token.LEFT_BRACE) {
-		return p.blockStatement()
-	}
 
 	return p.statement()
 }
@@ -95,7 +92,79 @@ func (p *Parser) varStatement() (ast.Stmt, error) {
 		return nil, &ParseError{p.buff.Current(), "Expect ';' after value."}
 	}
 
-	return &ast.Var{Name: name, Expr: initializer}, nil
+	return &ast.Var{Name: name, Expression: initializer}, nil
+}
+
+func (p *Parser) statement() (ast.Stmt, error) {
+	if p.buff.Match(token.WHILE) {
+		return p.whileStatement()
+	}
+	if p.buff.Match(token.IF) {
+		return p.ifStatement()
+	}
+	if p.buff.Match(token.PRINT) {
+		return p.printStatement()
+	}
+	if p.buff.Match(token.LEFT_BRACE) {
+		return p.blockStatement()
+	}
+
+	return p.expressionStatement()
+}
+
+func (p *Parser) whileStatement() (ast.Stmt, error) {
+	if !p.buff.Match(token.LEFT_PAREN) {
+		return nil, &ParseError{p.buff.Current(), "Expect '(' after 'while'."}
+	}
+	condition, err := p.expression()
+	if err != nil {
+		return nil, err
+	}
+	if !p.buff.Match(token.RIGHT_PAREN) {
+		return nil, &ParseError{p.buff.Current(), "Expect ')' after condition."}
+	}
+	body, err := p.statement()
+	if err != nil {
+		return nil, err
+	}
+	return &ast.While{Condition: condition, Body: body}, nil
+}
+
+func (p *Parser) ifStatement() (ast.Stmt, error) {
+	if !p.buff.Match(token.LEFT_PAREN) {
+		return nil, &ParseError{p.buff.Current(), "Expect '(' after 'if'."}
+	}
+	condition, err := p.expression()
+	if err != nil {
+		return nil, err
+	}
+	if !p.buff.Match(token.RIGHT_PAREN) {
+		return nil, &ParseError{p.buff.Current(), "Expect ')' after condition."}
+	}
+	thenBranch, err := p.statement()
+	if err != nil {
+		return nil, err
+	}
+
+	var elseBranch ast.Stmt
+	if p.buff.Match(token.ELSE) {
+		elseBranch, err = p.statement()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &ast.If{Condition: condition, ThenBranch: thenBranch, ElseBranch: elseBranch}, nil
+}
+
+func (p *Parser) printStatement() (ast.Stmt, error) {
+	expr, err := p.expression()
+	if err != nil {
+		return nil, err
+	}
+	if !p.buff.Match(token.SEMICOLON) && !p.buff.IsAtEnd() {
+		return nil, &ParseError{p.buff.Current(), "Expect ';' after value."}
+	}
+	return &ast.Print{Expression: expr}, nil
 }
 
 func (p *Parser) blockStatement() (ast.Stmt, error) {
@@ -111,25 +180,6 @@ func (p *Parser) blockStatement() (ast.Stmt, error) {
 		return nil, &ParseError{p.buff.Current(), "Expect '}' after block."}
 	}
 	return &ast.Block{Statements: stmts}, nil
-}
-
-func (p *Parser) statement() (ast.Stmt, error) {
-	if p.buff.Match(token.PRINT) {
-		return p.printStatement()
-	}
-
-	return p.expressionStatement()
-}
-
-func (p *Parser) printStatement() (ast.Stmt, error) {
-	expr, err := p.expression()
-	if err != nil {
-		return nil, err
-	}
-	if !p.buff.Match(token.SEMICOLON) && !p.buff.IsAtEnd() {
-		return nil, &ParseError{p.buff.Current(), "Expect ';' after value."}
-	}
-	return &ast.Print{Expression: expr}, nil
 }
 
 func (p *Parser) expressionStatement() (ast.Stmt, error) {
@@ -148,7 +198,7 @@ func (p *Parser) expression() (ast.Expr, error) {
 }
 
 func (p *Parser) assignment() (ast.Expr, error) {
-	expr, err := p.equality()
+	expr, err := p.or()
 	if err != nil {
 		return nil, err
 	}
@@ -162,6 +212,40 @@ func (p *Parser) assignment() (ast.Expr, error) {
 			return &ast.Assign{Name: variable.Name, Value: value}, nil
 		}
 		return nil, &ParseError{equals, "Invalid assignment target."}
+	}
+	return expr, nil
+}
+
+func (p *Parser) or() (ast.Expr, error) {
+	expr, err := p.and()
+	if err != nil {
+		return nil, err
+	}
+
+	for p.buff.Check(token.OR) {
+		operator := p.buff.Advance()
+		right, err := p.and()
+		if err != nil {
+			return nil, err
+		}
+		expr = &ast.Logical{Left: expr, Operator: operator, Right: right}
+	}
+	return expr, nil
+}
+
+func (p *Parser) and() (ast.Expr, error) {
+	expr, err := p.equality()
+	if err != nil {
+		return nil, err
+	}
+
+	for p.buff.Check(token.AND) {
+		operator := p.buff.Advance()
+		right, err := p.equality()
+		if err != nil {
+			return nil, err
+		}
+		expr = &ast.Logical{Left: expr, Operator: operator, Right: right}
 	}
 	return expr, nil
 }
